@@ -2,6 +2,7 @@ from collections import defaultdict
 import os
 import json
 
+import boto3
 from google.oauth2 import service_account
 
 from .lib import mkdir, colorize
@@ -109,18 +110,19 @@ def aws_credentials(bucket = '', service = 'aws'):
       with open(aws_credentials_path, 'r') as f:
         aws_credentials = json.loads(f.read())
       break
-  
+
+  # try to get credentials from boto3
   if not aws_credentials:
-    # did not find any secret json file, will try to find it in environment variables
-    if 'AWS_ACCESS_KEY_ID' in os.environ and 'AWS_SECRET_ACCESS_KEY' in os.environ:
-      aws_credentials = {
-        'AWS_ACCESS_KEY_ID': os.environ['AWS_ACCESS_KEY_ID'],
-        'AWS_SECRET_ACCESS_KEY': os.environ['AWS_SECRET_ACCESS_KEY'],
-      }
-    if 'AWS_DEFAULT_REGION' in os.environ:
-      aws_credentials['AWS_DEFAULT_REGION'] = os.environ['AWS_DEFAULT_REGION']
-    if 'AWS_SESSION_TOKEN' in os.environ:
-      aws_credentials['AWS_SESSION_TOKEN'] = os.environ['AWS_SESSION_TOKEN']
+    session = boto3.Session()
+    boto_credentials = session.get_credentials().get_frozen_credentials()
+    aws_credentials = {
+      'AWS_ACCESS_KEY_ID': boto_credentials.access_key,
+      'AWS_SECRET_ACCESS_KEY': boto_credentials.secret_key
+    }
+    if boto_credentials.token is not None:
+      aws_credentials['AWS_SESSION_TOKEN'] = boto_credentials.token
+    if session.region_name is not None:
+      aws_credentials['AWS_DEFAULT_REGION'] = session.region_name
 
   AWS_CREDENTIALS_CACHE[service][bucket] = aws_credentials
   return aws_credentials
