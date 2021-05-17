@@ -108,6 +108,9 @@ class S3ConnectionPool(ConnectionPool):
     if endpoint is not None:
       additional_args['endpoint_url'] = endpoint
 
+    if 'AWS_SESSION_TOKEN' in secrets:
+      additional_args['aws_session_token'] = secrets['AWS_SESSION_TOKEN']
+
     if self.service in ('aws', 's3'):
       return boto3.client(
         's3',
